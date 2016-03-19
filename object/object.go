@@ -3,7 +3,6 @@ package object
 import (
 	"encoding/csv"
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"sort"
@@ -36,8 +35,7 @@ func NewObject(ID string, Categorical string, NoMatchGroup string, Coords []stri
 	for _, s := range Coords {
 		coord, err := strconv.ParseFloat(s, 64)
 		if err != nil {
-			fmt.Println(err)
-			log.Fatal(err)
+			log.Panic(err)
 		}
 		coordsAsFloat = append(coordsAsFloat, coord)
 	}
@@ -130,8 +128,7 @@ func PeerObjects(obj1 *Object, obj2 *Object, distfn func([]float64, []float64) (
 func ProcessInputCSV(inputFile string) map[string][]*Object {
 	csvfile, err := os.Open(inputFile)
 	if err != nil {
-		fmt.Println(err)
-		log.Fatal(err)
+		log.Panic(err)
 	}
 	defer csvfile.Close()
 
@@ -140,8 +137,7 @@ func ProcessInputCSV(inputFile string) map[string][]*Object {
 
 	rawCSVdata, err := reader.ReadAll()
 	if err != nil {
-		fmt.Println(err)
-		log.Fatal(err)
+		log.Panic(err)
 	}
 
 	// for each row, let's create a new object and store it in map

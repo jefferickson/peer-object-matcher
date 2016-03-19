@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/jefferickson/peer-object-matcher/object"
@@ -38,16 +39,25 @@ func main() {
 	// process the input file
 	objects := object.ProcessInputCSV(inputFile)
 
+	// semaphore for concurreny
+	var wg sync.WaitGroup
+	wg.Add(len(objects))
+
 	// for each categorical group, let's calculate the peers
 	for groupLabel, categoricalGroup := range objects {
-		fmt.Println("Starting %v", groupLabel)
-		object.PeerAllObjects(categoricalGroup, maxPeers)
+		fmt.Println("Starting", groupLabel)
+		go func(label string, group []*object.Object) {
+			defer wg.Done()
+			object.PeerAllObjects(group, maxPeers)
+			fmt.Println("Finishing", label)
+		}(groupLabel, categoricalGroup)
 	}
 
-	// Diag: did it maybe work?
-	fmt.Println("%v", objects["1"][0].FinalPeers)
+	// wait for all go routines to complete
+	wg.Wait()
+	fmt.Println(objects["1"][0].FinalPeers)
 
 	// How long did it take?
 	elapsed := time.Since(start)
-	fmt.Println("%s", elapsed)
+	fmt.Println(elapsed)
 }
