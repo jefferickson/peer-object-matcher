@@ -30,7 +30,7 @@ func PeerObjects(obj1 *Object, obj2 *Object, distfn func([]float64, []float64) (
 }
 
 // Read in input CSV
-func ProcessInputCSV(inputFile string) map[string][]*Object {
+func ProcessInputCSV(inputFile string) (map[string][]*Object, int) {
     csvfile, err := os.Open(inputFile)
     if err != nil {
         log.Panic(err)
@@ -52,7 +52,7 @@ func ProcessInputCSV(inputFile string) map[string][]*Object {
         objects[row[1]] = append(objects[row[1]], NewObject(row[0], row[1], row[2], row[3:len(row)]))
     }
 
-    return objects
+    return objects, len(rawCSVdata)
 }
 
 // Generate a key for the cache

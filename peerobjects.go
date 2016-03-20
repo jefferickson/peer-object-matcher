@@ -37,24 +37,41 @@ func main() {
 	start := time.Now()
 
 	// process the input file
-	objects := object.ProcessInputCSV(inputFile)
+	objects, total_n := object.ProcessInputCSV(inputFile)
 
 	// semaphore for concurreny
 	var wg sync.WaitGroup
 	wg.Add(len(objects))
 
+	// channel to report progress
+	counter := make(chan bool)
+
 	// for each categorical group, let's calculate the peers
-	for groupLabel, categoricalGroup := range objects {
-		fmt.Println("Starting", groupLabel)
-		go func(label string, group []*object.Object) {
+	for _, categoricalGroup := range objects {
+		go func(group []*object.Object, counter chan<- bool) {
 			defer wg.Done()
-			object.PeerAllObjects(group, maxPeers)
-			fmt.Println("Finishing", label)
-		}(groupLabel, categoricalGroup)
+			object.PeerAllObjects(group, maxPeers, counter)
+		}(categoricalGroup, counter)
 	}
+
+	// start the counter to report progress
+	go func(counter <-chan bool, n int) {
+		current := 0
+		for {
+			_, ok := <- counter
+			if ok {
+				current++
+				fmt.Println(current, "/", n)
+			} else {
+				return
+			}
+		}
+	}(counter, total_n)
 
 	// wait for all go routines to complete
 	wg.Wait()
+	close(counter)
+
 	fmt.Println(objects["1"][0].FinalPeers)
 
 	// How long did it take?

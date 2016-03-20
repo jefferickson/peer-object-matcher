@@ -62,9 +62,10 @@ func NewObject(ID string, Categorical string, NoMatchGroup string, Coords []stri
 }
 
 // Peer all objects in a group with all other objects in a group
-func PeerAllObjects(objects []*Object, n int) {
+func PeerAllObjects(objects []*Object, n int, counter chan<- bool) {
 	for _, object := range objects {
 		object.findClosestPeers(objects, n)
+		counter <- true
 	}
 }
 
