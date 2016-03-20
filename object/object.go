@@ -1,12 +1,15 @@
 package object
 
 import (
+	"bytes"
 	"encoding/csv"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"sort"
 	"strconv"
+	"sync"
 
 	"github.com/jefferickson/peer-object-matcher/utils"
 )
@@ -20,6 +23,7 @@ type Object struct {
 	PeerComps    []PeerComp
 	PeerDists    []float64
 	FinalPeers   []string
+	CacheKey 	 string
 }
 
 // To store the distances to other potential peers
@@ -27,6 +31,18 @@ type PeerComp struct {
 	PeerObject *Object
 	Distance   float64
 }
+
+// To store cached peer comparisons
+type CachedPeerComps struct {
+	PeerComps []PeerComp
+	PeerDists []float64
+}
+
+// semaphore for map access
+var mu sync.Mutex
+
+// Map to store the cache itself
+var peerCompCache = make(map[string]CachedPeerComps)
 
 // Factory function to create an object
 func NewObject(ID string, Categorical string, NoMatchGroup string, Coords []string) *Object {
@@ -45,6 +61,7 @@ func NewObject(ID string, Categorical string, NoMatchGroup string, Coords []stri
 		Categorical:  Categorical,
 		NoMatchGroup: NoMatchGroup,
 		Coords:       coordsAsFloat,
+		CacheKey:	  getCacheKey(Categorical, NoMatchGroup, Coords),
 	}
 }
 
@@ -68,8 +85,20 @@ func (o *Object) addPeerComp(peer *Object) {
 func (o *Object) findClosestPeers(peers []*Object, n int) {
 	// if PeerDists doesn't exist, then we need to calculate them
 	if o.PeerComps == nil {
-		for _, peer := range peers {
-			o.addPeerComp(peer)
+		// Check if this calculation is already in the cache.
+		if cached, ok := peerCompCache[o.CacheKey]; ok {
+			fmt.Println("cached")
+			o.PeerComps = cached.PeerComps
+			o.PeerDists = cached.PeerDists
+		} else {
+			fmt.Println("not cached")
+			for _, peer := range peers {
+				o.addPeerComp(peer)
+			}
+			// Store into cache for others
+			mu.Lock()
+			peerCompCache[o.CacheKey] = CachedPeerComps{o.PeerComps, o.PeerDists}
+			mu.Unlock()
 		}
 	}
 
@@ -94,6 +123,21 @@ func (o *Object) findClosestPeers(peers []*Object, n int) {
 	}
 	sort.Strings(o.FinalPeers)
 	// TODO: 'smartly' delete those over n so that we have exactly n
+}
+
+// Generate a key for the cache
+func getCacheKey(a string, b string, cs []string) string {
+	var key bytes.Buffer
+	key.WriteString(a)
+	key.WriteString(",")
+	key.WriteString(b)
+	key.WriteString(",")
+	for _, c := range cs {
+		key.WriteString(c)
+		key.WriteString(",")
+	}
+
+	return key.String()
 }
 
 // Peer all objects in a group with all other objects in a group
