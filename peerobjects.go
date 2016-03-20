@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -42,10 +41,10 @@ func main() {
 	// process the input file, open file for output
 	objects, total_n := object.ProcessInputCSV(inputFile)
 	outputCSV, err := os.Create(outputFile)
-    if err != nil {
-        log.Panic(err)
-    }
-    defer outputCSV.Close()
+	if err != nil {
+		log.Panic(err)
+	}
+	defer outputCSV.Close()
 
 	// semaphore for concurreny
 	var wg sync.WaitGroup
@@ -69,7 +68,7 @@ func main() {
 	go func(counter <-chan bool, n int) {
 		current := 0
 		for {
-			_, ok := <- counter
+			_, ok := <-counter
 			if ok {
 				current++
 				fmt.Println(current, "/", n)
@@ -82,14 +81,10 @@ func main() {
 	// start the reporter that will write out results to CSV and clean up
 	go func(toWrite <-chan string, outputFile io.Writer) {
 		for {
-			categoricalGroup, ok := <- toWrite
+			categoricalGroup, ok := <-toWrite
 			if ok {
-				readyToDelete := object.OutputToCSV(objects[categoricalGroup], outputFile)
-				if readyToDelete {
-					delete(objects, categoricalGroup)
-				} else {
-					log.Panic(errors.New("Could not output to file."))
-				}
+				object.OutputToCSV(objects[categoricalGroup], outputFile)
+				delete(objects, categoricalGroup)
 			} else {
 				return
 			}

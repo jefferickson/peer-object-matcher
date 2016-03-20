@@ -16,21 +16,21 @@ type Object struct {
 	Categorical  string
 	NoMatchGroup string
 	Coords       []float64
-	PeerComps    []PeerComp
+	PeerComps    []peerComp
 	PeerDists    []float64
 	FinalPeers   []string
-	CacheKey 	 string
+	CacheKey     string
 }
 
 // To store the distances to other potential peers
-type PeerComp struct {
+type peerComp struct {
 	PeerObject *Object
 	Distance   float64
 }
 
 // To store cached peer comparisons
-type CachedPeerComps struct {
-	PeerComps []PeerComp
+type cachedPeerComps struct {
+	PeerComps []peerComp
 	PeerDists []float64
 }
 
@@ -38,7 +38,15 @@ type CachedPeerComps struct {
 var mu sync.Mutex
 
 // Map to store the cache itself
-var peerCompCache = make(map[string]CachedPeerComps)
+var peerCompCache = make(map[string]cachedPeerComps)
+
+// Peer all objects in a group with all other objects in a group
+func PeerAllObjects(objects []*Object, n int, counter chan<- bool) {
+	for _, object := range objects {
+		object.findClosestPeers(objects, n)
+		counter <- true
+	}
+}
 
 // Factory function to create an object
 func newObject(ID string, Categorical string, NoMatchGroup string, Coords []string) *Object {
@@ -57,15 +65,7 @@ func newObject(ID string, Categorical string, NoMatchGroup string, Coords []stri
 		Categorical:  Categorical,
 		NoMatchGroup: NoMatchGroup,
 		Coords:       coordsAsFloat,
-		CacheKey:	  genCacheKey(Categorical, NoMatchGroup, Coords),
-	}
-}
-
-// Peer all objects in a group with all other objects in a group
-func PeerAllObjects(objects []*Object, n int, counter chan<- bool) {
-	for _, object := range objects {
-		object.findClosestPeers(objects, n)
-		counter <- true
+		CacheKey:     genCacheKey(Categorical, NoMatchGroup, Coords),
 	}
 }
 
@@ -83,7 +83,7 @@ func (o *Object) findClosestPeers(peers []*Object, n int) {
 			}
 			// Store into cache for others
 			mu.Lock()
-			peerCompCache[o.CacheKey] = CachedPeerComps{o.PeerComps, o.PeerDists}
+			peerCompCache[o.CacheKey] = cachedPeerComps{o.PeerComps, o.PeerDists}
 			mu.Unlock()
 		}
 	}
@@ -119,7 +119,7 @@ func (o *Object) addPeerComp(peer *Object) {
 		return
 	}
 
-	peerCompTemp := PeerComp{
+	peerCompTemp := peerComp{
 		PeerObject: peer,
 		Distance:   distanceToPeer,
 	}
