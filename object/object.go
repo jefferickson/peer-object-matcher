@@ -41,7 +41,7 @@ var mu sync.Mutex
 var peerCompCache = make(map[string]CachedPeerComps)
 
 // Factory function to create an object
-func NewObject(ID string, Categorical string, NoMatchGroup string, Coords []string) *Object {
+func newObject(ID string, Categorical string, NoMatchGroup string, Coords []string) *Object {
 	// convert coords to floats
 	var coordsAsFloat []float64
 	for _, s := range Coords {
@@ -114,7 +114,7 @@ func (o *Object) findClosestPeers(peers []*Object, n int) {
 
 // Function to add a distance to another peer
 func (o *Object) addPeerComp(peer *Object) {
-	distanceToPeer, err := PeerObjects(o, peer, utils.EuclideanDistance)
+	distanceToPeer, err := peerObjects(o, peer, utils.EuclideanDistance)
 	if err != nil {
 		return
 	}

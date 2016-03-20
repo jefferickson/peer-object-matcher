@@ -1,16 +1,19 @@
 package object
 
 import (
+    "bufio"
     "bytes"
     "encoding/csv"
     "errors"
+    "fmt"
+    "io"
     "log"
     "os"
 )
 
 // Determine distance between two peers
 // Or return error if they cannot be peered
-func PeerObjects(obj1 *Object, obj2 *Object, distfn func([]float64, []float64) (float64, error)) (float64, error) {
+func peerObjects(obj1 *Object, obj2 *Object, distfn func([]float64, []float64) (float64, error)) (float64, error) {
     distance := 0.0
 
     // check to make sure they have the same categorical values
@@ -49,10 +52,26 @@ func ProcessInputCSV(inputFile string) (map[string][]*Object, int) {
     // according to its categorical data
     objects := make(map[string][]*Object)
     for _, row := range rawCSVdata {
-        objects[row[1]] = append(objects[row[1]], NewObject(row[0], row[1], row[2], row[3:len(row)]))
+        objects[row[1]] = append(objects[row[1]], newObject(row[0], row[1], row[2], row[3:len(row)]))
     }
 
     return objects, len(rawCSVdata)
+}
+
+// Output results to CSV
+func OutputToCSV(records []*Object, outputFile io.Writer) bool {
+    w := bufio.NewWriter(outputFile)
+    // create record
+    for _, record := range records {
+        fmt.Fprint(w, record.ID, ",")
+        for _, peer := range record.FinalPeers {
+            fmt.Fprint(w, peer, ",")
+        }
+        fmt.Fprint(w, "\n")
+    }
+    w.Flush()
+    fmt.Println("Wrote!")
+    return true
 }
 
 // Generate a key for the cache
