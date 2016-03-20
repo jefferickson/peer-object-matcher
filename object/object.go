@@ -1,12 +1,8 @@
 package object
 
 import (
-	"bytes"
-	"encoding/csv"
 	"errors"
-	"fmt"
 	"log"
-	"os"
 	"sort"
 	"strconv"
 	"sync"
@@ -38,7 +34,7 @@ type CachedPeerComps struct {
 	PeerDists []float64
 }
 
-// semaphore for map access
+// Semaphore for map access
 var mu sync.Mutex
 
 // Map to store the cache itself
@@ -61,24 +57,15 @@ func NewObject(ID string, Categorical string, NoMatchGroup string, Coords []stri
 		Categorical:  Categorical,
 		NoMatchGroup: NoMatchGroup,
 		Coords:       coordsAsFloat,
-		CacheKey:	  getCacheKey(Categorical, NoMatchGroup, Coords),
+		CacheKey:	  genCacheKey(Categorical, NoMatchGroup, Coords),
 	}
 }
 
-// Function to add a distance to another peer
-func (o *Object) addPeerComp(peer *Object) {
-	distanceToPeer, err := PeerObjects(o, peer, utils.EuclideanDistance)
-	if err != nil {
-		return
+// Peer all objects in a group with all other objects in a group
+func PeerAllObjects(objects []*Object, n int) {
+	for _, object := range objects {
+		object.findClosestPeers(objects, n)
 	}
-
-	peerCompTemp := PeerComp{
-		PeerObject: peer,
-		Distance:   distanceToPeer,
-	}
-
-	o.PeerComps = append(o.PeerComps, peerCompTemp)
-	o.PeerDists = append(o.PeerDists, distanceToPeer)
 }
 
 // Function to find the closest peers
@@ -87,11 +74,9 @@ func (o *Object) findClosestPeers(peers []*Object, n int) {
 	if o.PeerComps == nil {
 		// Check if this calculation is already in the cache.
 		if cached, ok := peerCompCache[o.CacheKey]; ok {
-			fmt.Println("cached")
 			o.PeerComps = cached.PeerComps
 			o.PeerDists = cached.PeerDists
 		} else {
-			fmt.Println("not cached")
 			for _, peer := range peers {
 				o.addPeerComp(peer)
 			}
@@ -123,73 +108,21 @@ func (o *Object) findClosestPeers(peers []*Object, n int) {
 	}
 	sort.Strings(o.FinalPeers)
 	// TODO: 'smartly' delete those over n so that we have exactly n
+	// TODO: test that we have found exactly n peers
 }
 
-// Generate a key for the cache
-func getCacheKey(a string, b string, cs []string) string {
-	var key bytes.Buffer
-	key.WriteString(a)
-	key.WriteString(",")
-	key.WriteString(b)
-	key.WriteString(",")
-	for _, c := range cs {
-		key.WriteString(c)
-		key.WriteString(",")
-	}
-
-	return key.String()
-}
-
-// Peer all objects in a group with all other objects in a group
-func PeerAllObjects(objects []*Object, n int) {
-	for _, object := range objects {
-		object.findClosestPeers(objects, n)
-	}
-}
-
-// Determine distance between two peers
-// Or return error if they cannot be peered
-func PeerObjects(obj1 *Object, obj2 *Object, distfn func([]float64, []float64) (float64, error)) (float64, error) {
-	distance := 0.0
-
-	// check to make sure they have the same categorical values
-	if obj1.Categorical != obj2.Categorical {
-		return distance, errors.New("Categorical data does not match.")
-	}
-
-	// check to make sure they aren't in the same no match group
-	if obj1.NoMatchGroup == obj2.NoMatchGroup {
-		return distance, errors.New("noMatchGroups match.")
-	}
-
-	// these objects can be peered
-	// calc the distance between them
-	distance, err := distfn(obj1.Coords, obj2.Coords)
-	return distance, err
-}
-
-// Read in input CSV
-func ProcessInputCSV(inputFile string) map[string][]*Object {
-	csvfile, err := os.Open(inputFile)
+// Function to add a distance to another peer
+func (o *Object) addPeerComp(peer *Object) {
+	distanceToPeer, err := PeerObjects(o, peer, utils.EuclideanDistance)
 	if err != nil {
-		log.Panic(err)
-	}
-	defer csvfile.Close()
-
-	reader := csv.NewReader(csvfile)
-	reader.FieldsPerRecord = -1
-
-	rawCSVdata, err := reader.ReadAll()
-	if err != nil {
-		log.Panic(err)
+		return
 	}
 
-	// for each row, let's create a new object and store it in map
-	// according to its categorical data
-	objects := make(map[string][]*Object)
-	for _, row := range rawCSVdata {
-		objects[row[1]] = append(objects[row[1]], NewObject(row[0], row[1], row[2], row[3:len(row)]))
+	peerCompTemp := PeerComp{
+		PeerObject: peer,
+		Distance:   distanceToPeer,
 	}
 
-	return objects
+	o.PeerComps = append(o.PeerComps, peerCompTemp)
+	o.PeerDists = append(o.PeerDists, distanceToPeer)
 }
