@@ -4,33 +4,11 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/csv"
-	"errors"
 	"fmt"
 	"io"
 	"log"
 	"os"
 )
-
-// Determine distance between two peers
-// Or return error if they cannot be peered
-func peerObjects(obj1 *Object, obj2 *Object, distfn func([]float64, []float64) (float64, error)) (float64, error) {
-	distance := 0.0
-
-	// check to make sure they have the same categorical values
-	if obj1.Categorical != obj2.Categorical {
-		return distance, errors.New("Categorical data does not match.")
-	}
-
-	// check to make sure they aren't in the same no match group
-	if obj1.NoMatchGroup == obj2.NoMatchGroup {
-		return distance, errors.New("noMatchGroups match.")
-	}
-
-	// these objects can be peered
-	// calc the distance between them
-	distance, err := distfn(obj1.Coords, obj2.Coords)
-	return distance, err
-}
 
 // Read in input CSV
 func ProcessInputCSV(inputFile string) (map[string][]*Object, int) {
@@ -49,7 +27,7 @@ func ProcessInputCSV(inputFile string) (map[string][]*Object, int) {
 	}
 
 	// for each row, let's create a new object and store it in map
-	// according to its categorical data
+	// according to its categorical data (since we will want to keep them separate)
 	objects := make(map[string][]*Object)
 	for _, row := range rawCSVdata {
 		objects[row[1]] = append(objects[row[1]], newObject(row[0], row[1], row[2], row[3:len(row)]))
@@ -59,16 +37,14 @@ func ProcessInputCSV(inputFile string) (map[string][]*Object, int) {
 }
 
 // Output results to CSV
-func OutputToCSV(records []*Object, outputFile io.Writer) {
+func outputToCSV(record *Object, outputFile io.Writer) {
 	w := bufio.NewWriter(outputFile)
 	// create record
-	for _, record := range records {
-		fmt.Fprint(w, record.ID)
-		for _, peer := range record.FinalPeers {
-			fmt.Fprint(w, ",", peer)
-		}
-		fmt.Fprint(w, "\n")
+	fmt.Fprint(w, record.ID)
+	for _, peer := range record.FinalPeers {
+		fmt.Fprint(w, ",", peer)
 	}
+	fmt.Fprint(w, "\n")
 	w.Flush()
 }
 

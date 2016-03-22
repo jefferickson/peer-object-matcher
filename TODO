@@ -1,8 +1,8 @@
-- Make helper functions for managing main go routines.
 - Make sure only n total peers and implement two-key sorting using hash of ID
-- Delete unneeded cache
-- Manage cache with go routine
+- Manage cache with go routine or other helper function
 - Any performance improvements by setting capacity of slice in advance?
 - Add README
 - How much time does cache save in realistic data?
 - Make sure output matches output of Python version
+- Break up work into chunks even within groups so that processor time is more evenly used
+- Optimize caching (don't store more than you need; delete it when you know you no longer need it)

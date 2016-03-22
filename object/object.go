@@ -29,21 +29,21 @@ type peerComp struct {
 }
 
 // To store cached peer comparisons
-type cachedPeerComps struct {
-	PeerComps []peerComp
-	PeerDists []float64
+type cachedFinalPeers struct {
+	FinalPeers []string
 }
 
 // Semaphore for map access
 var mu sync.Mutex
 
 // Map to store the cache itself
-var peerCompCache = make(map[string]cachedPeerComps)
+var peerCache = make(map[string]cachedFinalPeers)
 
 // Peer all objects in a group with all other objects in a group
-func PeerAllObjects(objects []*Object, n int, counter chan<- bool) {
+func peerAllObjects(objects []*Object, n int, writer chan<- *Object, counter chan<- bool) {
 	for _, object := range objects {
 		object.findClosestPeers(objects, n)
+		writer <- object
 		counter <- true
 	}
 }
@@ -73,18 +73,14 @@ func newObject(ID string, Categorical string, NoMatchGroup string, Coords []stri
 func (o *Object) findClosestPeers(peers []*Object, n int) {
 	// if PeerDists doesn't exist, then we need to calculate them
 	if o.PeerComps == nil {
-		// Check if this calculation is already in the cache.
-		if cached, ok := peerCompCache[o.CacheKey]; ok {
-			o.PeerComps = cached.PeerComps
-			o.PeerDists = cached.PeerDists
+		// first check to see if they are already calculated and cached
+		if cached, ok := peerCache[o.CacheKey]; ok {
+			o.FinalPeers = cached.FinalPeers
+			return
 		} else {
 			for _, peer := range peers {
 				o.addPeerComp(peer)
 			}
-			// Store into cache for others
-			mu.Lock()
-			peerCompCache[o.CacheKey] = cachedPeerComps{o.PeerComps, o.PeerDists}
-			mu.Unlock()
 		}
 	}
 
@@ -107,15 +103,27 @@ func (o *Object) findClosestPeers(peers []*Object, n int) {
 			o.FinalPeers = append(o.FinalPeers, finalPeer.PeerObject.ID)
 		}
 	}
-	sort.Strings(o.FinalPeers)
 	// TODO: 'smartly' delete those over n so that we have exactly n
 	// TODO: test that we have found exactly n peers
+
+	// Sort the final peers by ID
+	sort.Strings(o.FinalPeers)
+
+	// We no longer need the actual comps so clear up that space
+	o.PeerComps = nil
+	o.PeerDists = nil
+
+	// Store the results into the cache
+	mu.Lock()
+	peerCache[o.CacheKey] = cachedFinalPeers{o.FinalPeers}
+	mu.Unlock()
 }
 
 // Function to add a distance to another peer
 func (o *Object) addPeerComp(peer *Object) {
 	distanceToPeer, err := peerObjects(o, peer, utils.EuclideanDistance)
 	if err != nil {
+		// we don't want to peer these objects
 		return
 	}
 
