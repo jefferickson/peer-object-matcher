@@ -35,7 +35,10 @@ func (o *ObjectsToPeer) Run(maxPeers int, outputFile string) {
 	for _, categoricalGroup := range o.Objects {
 		go func(group []*Object) {
 			defer wg.Done()
-			peerAllObjects(group, maxPeers, toWrite, toCounter)
+
+			// create a cache then start peering on this group
+			cache := make(map[string]cachedFinalPeers)
+			peerAllObjects(group, maxPeers, cache, toWrite, toCounter)
 		}(categoricalGroup)
 	}
 

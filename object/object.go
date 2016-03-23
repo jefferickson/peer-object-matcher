@@ -29,20 +29,15 @@ type peerComp struct {
 }
 
 // To store cached peer comparisons
-type cachedFinalPeers struct {
-	FinalPeers []string
-}
+type cachedFinalPeers []string
 
 // Semaphore for map access
 var mu sync.Mutex
 
-// Map to store the cache itself
-var peerCache = make(map[string]cachedFinalPeers)
-
 // Peer all objects in a group with all other objects in a group
-func peerAllObjects(objects []*Object, n int, writer chan<- *Object, counter chan<- bool) {
+func peerAllObjects(objects []*Object, n int, cache map[string]cachedFinalPeers, writer chan<- *Object, counter chan<- bool) {
 	for _, object := range objects {
-		object.findClosestPeers(objects, n)
+		object.findClosestPeers(objects, n, cache)
 		writer <- object
 		counter <- true
 	}
@@ -70,12 +65,12 @@ func newObject(ID string, Categorical string, NoMatchGroup string, Coords []stri
 }
 
 // Function to find the closest peers
-func (o *Object) findClosestPeers(peers []*Object, n int) {
+func (o *Object) findClosestPeers(peers []*Object, n int, cache map[string]cachedFinalPeers) {
 	// if PeerDists doesn't exist, then we need to calculate them
 	if o.PeerComps == nil {
 		// first check to see if they are already calculated and cached
-		if cached, ok := peerCache[o.CacheKey]; ok {
-			o.FinalPeers = cached.FinalPeers
+		if cached, ok := cache[o.CacheKey]; ok {
+			o.FinalPeers = cached
 			return
 		} else {
 			for _, peer := range peers {
@@ -114,9 +109,7 @@ func (o *Object) findClosestPeers(peers []*Object, n int) {
 	o.PeerDists = nil
 
 	// Store the results into the cache
-	mu.Lock()
-	peerCache[o.CacheKey] = cachedFinalPeers{o.FinalPeers}
-	mu.Unlock()
+	cache[o.CacheKey] = o.FinalPeers
 }
 
 // Function to add a distance to another peer
