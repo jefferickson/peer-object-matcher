@@ -13,6 +13,7 @@ import (
 var inputFile string
 var outputFile string
 var maxPeers int
+var maxBlockSize int
 var cpuLimit int
 
 func init() {
@@ -20,6 +21,7 @@ func init() {
 	flag.StringVar(&inputFile, "input", "", "The input CSV.")
 	flag.StringVar(&outputFile, "output", "", "The output CSV.")
 	flag.IntVar(&maxPeers, "maxpeers", 50, "The maximum number of peers.")
+	flag.IntVar(&maxBlockSize, "maxblocksize", 5000, "The maximum number of objects per routine.")
 	// flag.IntVar(&cpuLimit, "cpulimit", 1, "The max number of CPU cores to utilize.")
 
 	flag.Parse()
@@ -38,7 +40,7 @@ func main() {
 	// process the input file and start up!
 	objects, total_n := object.ProcessInputCSV(inputFile)
 	allObjects := object.ObjectsToPeer{Objects: objects, N: total_n}
-	allObjects.Run(maxPeers, outputFile)
+	allObjects.Run(maxPeers, outputFile, maxBlockSize)
 
 	// How long did it take?
 	elapsed := time.Since(start)

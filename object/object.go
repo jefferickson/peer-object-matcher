@@ -5,7 +5,6 @@ import (
 	"log"
 	"sort"
 	"strconv"
-	"sync"
 
 	"github.com/jefferickson/peer-object-matcher/utils"
 )
@@ -22,6 +21,12 @@ type Object struct {
 	CacheKey     string
 }
 
+// The slice and pool you want to peer
+type peerSliceAndPool struct {
+	slice []*Object
+	pool  []*Object
+}
+
 // To store the distances to other potential peers
 type peerComp struct {
 	PeerObject *Object
@@ -30,14 +35,12 @@ type peerComp struct {
 
 // To store cached peer comparisons
 type cachedFinalPeers []string
-
-// Semaphore for map access
-var mu sync.Mutex
+type peeredCache map[string]cachedFinalPeers
 
 // Peer all objects in a group with all other objects in a group
-func peerAllObjects(objects []*Object, n int, cache map[string]cachedFinalPeers, writer chan<- *Object, counter chan<- bool) {
-	for _, object := range objects {
-		object.findClosestPeers(objects, n, cache)
+func peerAllObjects(p peerSliceAndPool, n int, cache peeredCache, writer chan<- *Object, counter chan<- bool) {
+	for _, object := range p.slice {
+		object.findClosestPeers(p.pool, n, cache)
 		writer <- object
 		counter <- true
 	}

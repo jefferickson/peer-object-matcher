@@ -15,7 +15,7 @@ type ObjectsToPeer struct {
 }
 
 // The main function: everything starts here
-func (o *ObjectsToPeer) Run(maxPeers int, outputFile string) {
+func (o *ObjectsToPeer) Run(maxPeers int, outputFile string, maxBlockSize int) {
 	// open file for output
 	outputCSV, err := os.Create(outputFile)
 	if err != nil {
@@ -25,7 +25,6 @@ func (o *ObjectsToPeer) Run(maxPeers int, outputFile string) {
 
 	// semaphore for concurrency
 	var wg sync.WaitGroup
-	wg.Add(len(o.Objects))
 
 	// channels to report progress
 	toCounter := make(chan bool)
@@ -33,13 +32,27 @@ func (o *ObjectsToPeer) Run(maxPeers int, outputFile string) {
 
 	// for each categorical group, let's calculate the peers on a separate thread
 	for _, categoricalGroup := range o.Objects {
-		go func(group []*Object) {
-			defer wg.Done()
+		totalProcessed := 0
+		for totalSubgroups := len(categoricalGroup)/maxBlockSize + 1; totalProcessed < totalSubgroups; totalProcessed++ {
+			wg.Add(1)
 
-			// create a cache then start peering on this group
-			cache := make(map[string]cachedFinalPeers)
-			peerAllObjects(group, maxPeers, cache, toWrite, toCounter)
-		}(categoricalGroup)
+			// what are the bounds of this partition
+			start := totalProcessed * maxBlockSize
+			end := start + maxBlockSize
+			if end > len(categoricalGroup) {
+				end = len(categoricalGroup)
+			}
+			p := peerSliceAndPool{categoricalGroup[start:end], categoricalGroup}
+
+			// start go routine on this peer slice
+			go func(p peerSliceAndPool) {
+				defer wg.Done()
+
+				// create a cache then start peering on this group
+				cache := make(map[string]cachedFinalPeers)
+				peerAllObjects(p, maxPeers, cache, toWrite, toCounter)
+			}(p)
+		}
 	}
 
 	// start the counter to report progress
