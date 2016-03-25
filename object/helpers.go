@@ -28,11 +28,17 @@ func ProcessInputCSV(inputFile string) (map[string][]*Object, int) {
 		log.Panic(err)
 	}
 
+	// let's first get a count of each categorical group for memory management
+	categoricalGroupSizes := make(map[string]int)
+	for _, row := range rawCSVdata {
+		categoricalGroupSizes[row[1]]++
+	}
+
 	// for each row, let's create a new object and store it in map
 	// according to its categorical data (since we will want to keep them separate)
 	objects := make(map[string][]*Object)
 	for _, row := range rawCSVdata {
-		objects[row[1]] = append(objects[row[1]], newObject(row[0], row[1], row[2], row[3:len(row)]))
+		objects[row[1]] = append(objects[row[1]], newObject(row[0], row[1], row[2], row[3:len(row)], categoricalGroupSizes[row[1]]))
 	}
 
 	return objects, len(rawCSVdata)

@@ -1,3 +1,2 @@
-- Any performance improvements by setting capacity of slice in advance?
 - Add README
 - Try a cache that can serve the entire categorical group over many go routines

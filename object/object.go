@@ -19,6 +19,7 @@ type Object struct {
 	FinalPeers   []string
 	CacheKey     string
 	HashedID     string
+	MaxPeers     int
 }
 
 // The slice and pool you want to peer
@@ -32,8 +33,6 @@ type peerComp struct {
 	PeerObject *Object
 	Distance   float64
 }
-
-// A collection of peer comparisons
 type peerComps []peerComp
 
 // To store cached peer comparisons
@@ -50,7 +49,7 @@ func peerAllObjects(p peerSliceAndPool, n int, cache peeredCache, writer chan<- 
 }
 
 // Factory function to create an object
-func newObject(ID string, Categorical string, NoMatchGroup string, Coords []string) *Object {
+func newObject(ID string, Categorical string, NoMatchGroup string, Coords []string, MaxPeers int) *Object {
 	// convert coords to floats
 	var coordsAsFloat []float64
 	for _, s := range Coords {
@@ -68,21 +67,21 @@ func newObject(ID string, Categorical string, NoMatchGroup string, Coords []stri
 		Coords:       coordsAsFloat,
 		CacheKey:     genCacheKey(Categorical, NoMatchGroup, Coords),
 		HashedID:     genMD5Hash(ID),
+		MaxPeers:     MaxPeers,
 	}
 }
 
 // Function to find the closest peers
 func (o *Object) findClosestPeers(peers []*Object, n int, cache map[string]cachedFinalPeers) {
-	// if PeerDists doesn't exist, then we need to calculate them
-	if o.PeerComps == nil {
-		// first check to see if they are already calculated and cached
-		if cached, ok := cache[o.CacheKey]; ok {
-			o.FinalPeers = cached
-			return
-		} else {
-			for _, peer := range peers {
-				o.addPeerComp(peer)
-			}
+	// first check to see if they are already calculated and cached
+	if cached, ok := cache[o.CacheKey]; ok {
+		o.FinalPeers = cached
+		return
+	} else {
+		// allocate memory to store all of the peer comparisons
+		o.PeerComps = make([]peerComp, 0, o.MaxPeers)
+		for _, peer := range peers {
+			o.addPeerComp(peer)
 		}
 	}
 
@@ -92,6 +91,7 @@ func (o *Object) findClosestPeers(peers []*Object, n int, cache map[string]cache
 		sort.Sort(o.PeerComps)
 		numOfPeers = n
 	}
+	o.FinalPeers = make([]string, 0, numOfPeers)
 	for i := 0; i < numOfPeers; i++ {
 		o.FinalPeers = append(o.FinalPeers, o.PeerComps[i].PeerObject.ID)
 	}
