@@ -27,13 +27,17 @@ func (o *ObjectsToPeer) Run(maxPeers int, outputFile string, maxBlockSize int) {
 	wg.Add(o.N)
 
 	// channels to report progress
-	toCounter := make(chan bool)
-	toWrite := make(chan *Object)
+	toCounter := make(chan bool, o.N)
+	toWrite := make(chan *Object, o.N)
 
 	// for each categorical group, let's calculate the peers on a separate thread
 	for _, categoricalGroup := range o.Objects {
 		totalProcessed := 0
 		nCategoricalGroup := len(categoricalGroup)
+
+		// cache and mutex for this categorical group
+		cache := cacheAndMutex{make(map[string][]string), new(sync.Mutex)}
+
 		for totalSubgroups := nCategoricalGroup/maxBlockSize + 1; totalProcessed < totalSubgroups; totalProcessed++ {
 			// what are the bounds of this partition
 			start := totalProcessed * maxBlockSize
@@ -44,11 +48,9 @@ func (o *ObjectsToPeer) Run(maxPeers int, outputFile string, maxBlockSize int) {
 			p := peerSliceAndPool{categoricalGroup[start:end], categoricalGroup}
 
 			// start go routine on this peer slice
-			go func(p peerSliceAndPool) {
-				// create a cache then start peering on this group
-				cache := make(map[string]cachedFinalPeers)
+			go func(p peerSliceAndPool, cache cacheAndMutex) {
 				peerAllObjects(p, maxPeers, cache, toWrite, toCounter)
-			}(p)
+			}(p, cache)
 		}
 	}
 
