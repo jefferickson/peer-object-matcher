@@ -33,14 +33,15 @@ func (o *ObjectsToPeer) Run(maxPeers int, outputFile string, maxBlockSize int) {
 	// for each categorical group, let's calculate the peers on a separate thread
 	for _, categoricalGroup := range o.Objects {
 		totalProcessed := 0
-		for totalSubgroups := len(categoricalGroup)/maxBlockSize + 1; totalProcessed < totalSubgroups; totalProcessed++ {
+		nCategoricalGroup := len(categoricalGroup)
+		for totalSubgroups := nCategoricalGroup/maxBlockSize + 1; totalProcessed < totalSubgroups; totalProcessed++ {
 			wg.Add(1)
 
 			// what are the bounds of this partition
 			start := totalProcessed * maxBlockSize
 			end := start + maxBlockSize
-			if end > len(categoricalGroup) {
-				end = len(categoricalGroup)
+			if end > nCategoricalGroup {
+				end = nCategoricalGroup
 			}
 			p := peerSliceAndPool{categoricalGroup[start:end], categoricalGroup}
 

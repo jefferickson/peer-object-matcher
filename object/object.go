@@ -15,10 +15,10 @@ type Object struct {
 	Categorical  string
 	NoMatchGroup string
 	Coords       []float64
-	PeerComps    []peerComp
-	PeerDists    []float64
+	PeerComps    peerComps
 	FinalPeers   []string
 	CacheKey     string
+	HashedID     string
 }
 
 // The slice and pool you want to peer
@@ -32,6 +32,9 @@ type peerComp struct {
 	PeerObject *Object
 	Distance   float64
 }
+
+// A collection of peer comparisons
+type peerComps []peerComp
 
 // To store cached peer comparisons
 type cachedFinalPeers []string
@@ -64,6 +67,7 @@ func newObject(ID string, Categorical string, NoMatchGroup string, Coords []stri
 		NoMatchGroup: NoMatchGroup,
 		Coords:       coordsAsFloat,
 		CacheKey:     genCacheKey(Categorical, NoMatchGroup, Coords),
+		HashedID:     genMD5Hash(ID),
 	}
 }
 
@@ -82,34 +86,26 @@ func (o *Object) findClosestPeers(peers []*Object, n int, cache map[string]cache
 		}
 	}
 
-	// make sure we have the same length of comps and dists, otherwise something went wrong
-	if len(o.PeerComps) != len(o.PeerDists) {
-		log.Panic(errors.New("PeerComps and PeerDists lengths differ."))
-	}
-
 	// find the closest n peers
-	var maxDistance float64
-	if len(o.PeerDists) > n {
-		sort.Float64s(o.PeerDists)
-		maxDistance = o.PeerDists[n-1]
-	} else {
-		maxDistance = o.PeerDists[len(o.PeerDists)-1]
+	numOfPeers := len(o.PeerComps)
+	if numOfPeers > n {
+		sort.Sort(o.PeerComps)
+		numOfPeers = n
+	}
+	for i := 0; i < numOfPeers; i++ {
+		o.FinalPeers = append(o.FinalPeers, o.PeerComps[i].PeerObject.ID)
 	}
 
-	for _, finalPeer := range o.PeerComps {
-		if finalPeer.Distance <= maxDistance {
-			o.FinalPeers = append(o.FinalPeers, finalPeer.PeerObject.ID)
-		}
+	// make sure we didn't exceed the allowed number
+	if len(o.FinalPeers) > n {
+		log.Panic(errors.New("Too many peers!"))
 	}
-	// TODO: 'smartly' delete those over n so that we have exactly n
-	// TODO: test that we have found exactly n peers
 
 	// Sort the final peers by ID
 	sort.Strings(o.FinalPeers)
 
 	// We no longer need the actual comps so clear up that space
 	o.PeerComps = nil
-	o.PeerDists = nil
 
 	// Store the results into the cache
 	cache[o.CacheKey] = o.FinalPeers
@@ -129,5 +125,4 @@ func (o *Object) addPeerComp(peer *Object) {
 	}
 
 	o.PeerComps = append(o.PeerComps, peerCompTemp)
-	o.PeerDists = append(o.PeerDists, distanceToPeer)
 }

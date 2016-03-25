@@ -3,7 +3,9 @@ package object
 import (
 	"bufio"
 	"bytes"
+	"crypto/md5"
 	"encoding/csv"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"log"
@@ -61,4 +63,11 @@ func genCacheKey(a string, b string, cs []string) string {
 	}
 
 	return key.String()
+}
+
+// Generate a hash for sorting
+func genMD5Hash(text string) string {
+	hasher := md5.New()
+	hasher.Write([]byte(text))
+	return hex.EncodeToString(hasher.Sum(nil))
 }
