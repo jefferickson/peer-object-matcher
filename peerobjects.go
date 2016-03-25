@@ -44,5 +44,6 @@ func main() {
 
 	// How long did it take?
 	elapsed := time.Since(start)
-	fmt.Println(elapsed)
+	fmt.Printf("\n")
+	fmt.Println("Completed in", elapsed)
 }

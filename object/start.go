@@ -89,7 +89,7 @@ func counter(ch <-chan bool, n int) {
 		_, ok := <-ch
 		if ok {
 			current++
-			fmt.Println(current, "/", n)
+			fmt.Printf("\rPeering: %d/%d", current, n)
 		} else {
 			return
 		}
