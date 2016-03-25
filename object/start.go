@@ -2,7 +2,6 @@ package object
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"sync"
@@ -23,8 +22,9 @@ func (o *ObjectsToPeer) Run(maxPeers int, outputFile string, maxBlockSize int) {
 	}
 	defer outputCSV.Close()
 
-	// semaphore for concurrency
+	// semaphore for concurrency, add for each object we have
 	var wg sync.WaitGroup
+	wg.Add(o.N)
 
 	// channels to report progress
 	toCounter := make(chan bool)
@@ -35,8 +35,6 @@ func (o *ObjectsToPeer) Run(maxPeers int, outputFile string, maxBlockSize int) {
 		totalProcessed := 0
 		nCategoricalGroup := len(categoricalGroup)
 		for totalSubgroups := nCategoricalGroup/maxBlockSize + 1; totalProcessed < totalSubgroups; totalProcessed++ {
-			wg.Add(1)
-
 			// what are the bounds of this partition
 			start := totalProcessed * maxBlockSize
 			end := start + maxBlockSize
@@ -47,8 +45,6 @@ func (o *ObjectsToPeer) Run(maxPeers int, outputFile string, maxBlockSize int) {
 
 			// start go routine on this peer slice
 			go func(p peerSliceAndPool) {
-				defer wg.Done()
-
 				// create a cache then start peering on this group
 				cache := make(map[string]cachedFinalPeers)
 				peerAllObjects(p, maxPeers, cache, toWrite, toCounter)
@@ -60,7 +56,7 @@ func (o *ObjectsToPeer) Run(maxPeers int, outputFile string, maxBlockSize int) {
 	go counter(toCounter, o.N)
 
 	// start the reporter that will write out results to CSV and clean up
-	go o.writeAndCleanUp(toWrite, outputCSV)
+	go o.writeAndCleanUp(toWrite, outputCSV, &wg)
 
 	// wait for all go routines to complete
 	wg.Wait()
@@ -69,11 +65,12 @@ func (o *ObjectsToPeer) Run(maxPeers int, outputFile string, maxBlockSize int) {
 }
 
 // Write results to disk and clean up
-func (o *ObjectsToPeer) writeAndCleanUp(ch <-chan *Object, outputFile io.Writer) {
+func (o *ObjectsToPeer) writeAndCleanUp(ch <-chan *Object, outputFile *os.File, wg *sync.WaitGroup) {
 	for {
 		objectToWrite, ok := <-ch
 		if ok {
 			outputToCSV(objectToWrite, outputFile)
+			wg.Done()
 			// Since everything is written out for this object, let's reset the FinalPeers
 			// to save space.
 			objectToWrite.FinalPeers = nil
