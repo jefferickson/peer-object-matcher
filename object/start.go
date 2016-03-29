@@ -36,7 +36,7 @@ func (o *ObjectsToPeer) Run(maxPeers int, outputFile string, maxBlockSize int) {
 		nCategoricalGroup := len(categoricalGroup)
 
 		// cache and mutex for this categorical group
-		cache := cacheAndMutex{make(map[string][]string), new(sync.Mutex)}
+		cache := cacheAndMutex{make(map[string][]string), new(sync.RWMutex)}
 
 		for totalSubgroups := nCategoricalGroup/maxBlockSize + 1; totalProcessed < totalSubgroups; totalProcessed++ {
 			// what are the bounds of this partition

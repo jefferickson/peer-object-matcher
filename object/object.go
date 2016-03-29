@@ -5,7 +5,6 @@ import (
 	"log"
 	"sort"
 	"strconv"
-	"sync"
 
 	"github.com/jefferickson/peer-object-matcher/utils"
 )
@@ -35,12 +34,6 @@ type peerComp struct {
 	Distance   float64
 }
 type peerComps []peerComp
-
-// To store cached peer comparisons
-type cacheAndMutex struct {
-	Cache map[string][]string
-	Mu    *sync.Mutex
-}
 
 // Peer all objects in a group with all other objects in a group
 func peerAllObjects(p peerSliceAndPool, n int, cache cacheAndMutex, writer chan<- *Object, counter chan<- bool) {
@@ -77,7 +70,7 @@ func newObject(ID string, Categorical string, NoMatchGroup string, Coords []stri
 // Function to find the closest peers
 func (o *Object) findClosestPeers(peers []*Object, n int, cache cacheAndMutex) {
 	// first check to see if they are already calculated and cached
-	if cached, ok := cache.Cache[o.CacheKey]; ok {
+	if cached, ok := cache.get(o.CacheKey); ok {
 		o.FinalPeers = cached
 		return
 	} else {
@@ -111,9 +104,7 @@ func (o *Object) findClosestPeers(peers []*Object, n int, cache cacheAndMutex) {
 	o.PeerComps = nil
 
 	// Store the results into the cache
-	cache.Mu.Lock()
-	cache.Cache[o.CacheKey] = o.FinalPeers
-	cache.Mu.Unlock()
+	cache.set(o.CacheKey, o.FinalPeers)
 }
 
 // Function to add a distance to another peer
