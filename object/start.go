@@ -10,6 +10,7 @@ import (
 // this stores a map of all objects we are going to peer
 type ObjectsToPeer struct {
 	Objects map[string][]*Object
+	Peers 	map[string][]*Object
 	N       int
 }
 
@@ -30,22 +31,22 @@ func (o *ObjectsToPeer) Run(maxPeers int, outputFile string, maxBlockSize int) {
 	toCounter := make(chan bool, o.N)
 	toWrite := make(chan *Object, o.N)
 
-	// for each categorical group, let's calculate the peers on a separate thread
-	for _, categoricalGroup := range o.Objects {
-		totalProcessed := 0
-		nCategoricalGroup := len(categoricalGroup)
-
+	// for each categorical group, let's calculate the peers within since peers do not span multiple categorical groups
+	for categoricalLabel, categoricalGroup := range o.Objects {
 		// cache and mutex for this categorical group
 		cache := cacheAndMutex{make(map[string][]string), new(sync.RWMutex)}
 
-		for totalSubgroups := nCategoricalGroup/maxBlockSize + 1; totalProcessed < totalSubgroups; totalProcessed++ {
+		// we are going to break this up into subgroups to better load the processing across go routines
+		nCategoricalGroup := len(categoricalGroup)
+		totalSubgroups := nCategoricalGroup/maxBlockSize + 1
+		for totalProcessed := 0; totalProcessed < totalSubgroups; totalProcessed++ {
 			// what are the bounds of this partition
 			start := totalProcessed * maxBlockSize
 			end := start + maxBlockSize
 			if end > nCategoricalGroup {
 				end = nCategoricalGroup
 			}
-			p := peerSliceAndPool{categoricalGroup[start:end], categoricalGroup}
+			p := peerSliceAndPool{categoricalGroup[start:end], o.Peers[categoricalLabel]}
 
 			// start go routine on this peer slice
 			go func(p peerSliceAndPool, cache cacheAndMutex) {

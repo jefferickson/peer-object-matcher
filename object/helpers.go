@@ -41,6 +41,8 @@ func ProcessInputCSV(inputFile string) (map[string][]*Object, int) {
 		objects[row[1]] = append(objects[row[1]], newObject(row[0], row[1], row[2], row[3:len(row)], categoricalGroupSizes[row[1]]))
 	}
 
+	fmt.Println("Read", inputFile)
+
 	return objects, len(rawCSVdata)
 }
 

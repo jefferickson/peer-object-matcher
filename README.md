@@ -25,6 +25,10 @@ The categorical data can be anything. Grouping will be done on the unique values
 
 Any number of continuous dimensions can be used, as long as each object has the same number of dimensions. Objects will be matched based within their categorical groups based on the shortest distance between objects. Euclidean distance in _n_ dimensions is used here, but other distance algorithms could be substituted.
 
+### Lag Peers
+
+It is possible to specify a separate list of objects from which to peer. The lag file must have the same format as the input file. The objects in the lag file will be used as peers, but will not be peered themselves.
+
 ### Installation
 
 After installing [Go](https://golang.org/dl/), follow these steps:

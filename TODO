@@ -1,4 +1,3 @@
-- Implement lag file
 - Implement minimum peer number warning
 - Implement max distance
 - Make sure noMatchGroup is optional
